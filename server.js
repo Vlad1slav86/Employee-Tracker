@@ -1,58 +1,296 @@
-const express = require('express');
-const mysql = require('mysql');
-const fs = require('fs');
+const mysql = require('mysql2');
+const inquirer = require('inquirer');
 
-const app = express();
-
-// Set up MySQL connection configuration
-const connection = mysql.createConnection({
+// Create database connection
+const db = mysql.createConnection({
   host: 'localhost',
   user: 'root',
   password: '',
-  database: 'your_database'
+  database: 'employee_tracker',
 });
 
-// Connect to the MySQL database
-connection.connect((err) => {
-  if (err) {
-    console.error('Error connecting to MySQL database:', err);
-    return;
-  }
-  console.log('Connected to MySQL database');
+// Function to display the main menu
+function displayMenu() {
+  inquirer
+    .prompt({
+      name: 'action',
+      type: 'list',
+      message: 'What would you like to do?',
+      choices: [
+        'View all departments',
+        'View all roles',
+        'View all employees',
+        'Add a department',
+        'Add a role',
+        'Add an employee',
+        'Update an employee role',
+        'Exit',
+      ],
+    })
+    .then((answer) => {
+      switch (answer.action) {
+        case 'View all departments':
+          viewDepartments();
+          break;
 
-  // Execute the schema file
-  const schemaFilePath = './schema.sql';
-  executeSQLFile(schemaFilePath);
+        case 'View all roles':
+          viewRoles();
+          break;
 
-  // Execute the seeds file
-  const seedsFilePath = './seeds.sql';
-  executeSQLFile(seedsFilePath);
-});
+        case 'View all employees':
+          viewEmployees();
+          break;
 
-// Function to execute SQL file
-function executeSQLFile(filePath) {
-  fs.readFile(filePath, 'utf8', (err, data) => {
-    if (err) {
-      console.error(`Error reading SQL file:`, err);
-      return;
-    }
+        case 'Add a department':
+          addDepartment();
+          break;
 
-    const sqlStatements = data.split(';').filter(statement => statement.trim() !== '');
+        case 'Add a role':
+          addRole();
+          break;
 
-    sqlStatements.forEach((statement) => {
-      connection.query(statement, (err, results) => {
-        if (err) {
-          console.error(`Error executing SQL statement:`, err);
+        case 'Add an employee':
+          addEmployee();
+          break;
+
+        case 'Update an employee role':
+          updateEmployeeRole();
+          break;
+
+        case 'Exit':
+          db.end();
           return;
-        }
-        console.log(`SQL statement executed successfully`);
-      });
+      }
     });
+}
+
+// Function to view all departments
+function viewDepartments() {
+  db.query('SELECT * FROM departments', (err, results) => {
+    if (err) {
+      console.error(err);
+    } else {
+      console.table(results);
+      displayMenu();
+    }
   });
 }
 
-// Start the server
-const port = 3001;
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Function to view all roles
+function viewRoles() {
+  db.query(
+    'SELECT roles.id, roles.title, roles.salary, departments.name AS department FROM roles LEFT JOIN departments ON roles.department_id = departments.id',
+    (err, results) => {
+      if (err) {
+        console.error(err);
+      } else {
+        console.table(results);
+        displayMenu();
+      }
+    }
+  );
+}
+
+// Function to view all employees
+function viewEmployees() {
+  db.query(
+    'SELECT employees.id, employees.first_name, employees.last_name, roles.title, departments.name AS department, roles.salary, CONCAT(managers.first_name, " ", managers.last_name) AS manager FROM employees LEFT JOIN roles ON employees.role_id = roles.id LEFT JOIN departments ON roles.department_id = departments.id LEFT JOIN employees managers ON employees.manager_id = managers.id',
+    (err, results) => {
+      if (err) {
+        console.error(err);
+      } else {
+        console.table(results);
+        displayMenu();
+      }
+    }
+  );
+}
+
+// Function to add a department
+function addDepartment() {
+  inquirer
+    .prompt({
+      name: 'name',
+      type: 'input',
+      message: 'Enter the name of the department:',
+    })
+    .then((answer) => {
+      db.query(
+        'INSERT INTO departments (name) VALUES (?)',
+        [answer.name],
+        (err, results) => {
+          if (err) {
+            console.error(err);
+          } else {
+            console.log('Department added successfully!');
+            displayMenu();
+          }
+        }
+      );
+    });
+}
+
+// Function to add a role
+function addRole() {
+  // First, retrieve the list of departments for the prompt choices
+  db.query('SELECT * FROM departments', (err, departments) => {
+    if (err) {
+      console.error(err);
+    } else {
+      inquirer
+        .prompt([
+          {
+            name: 'title',
+            type: 'input',
+            message: 'Enter the name of the role:',
+          },
+          {
+            name: 'salary',
+            type: 'input',
+            message: 'Enter the salary for the role:',
+          },
+          {
+            name: 'department',
+            type: 'list',
+            message: 'Select the department for the role:',
+            choices: departments.map((department) => department.name),
+          },
+        ])
+        .then((answers) => {
+          // Find the department ID based on the selected department name
+          const departmentId = departments.find(
+            (department) => department.name === answers.department
+          ).id;
+
+          // Insert the new role into the database
+          db.query(
+            'INSERT INTO roles (title, salary, department_id) VALUES (?, ?, ?)',
+            [answers.title, answers.salary, departmentId],
+            (err, results) => {
+              if (err) {
+                console.error(err);
+              } else {
+                console.log('Role added successfully!');
+                displayMenu();
+              }
+            }
+          );
+        });
+    }
+  });
+}
+
+// Function to add an employee
+function addEmployee() {
+  // First, retrieve the list of roles for the prompt choices
+  db.query('SELECT * FROM roles', (err, roles) => {
+    if (err) {
+      console.error(err);
+    } else {
+      inquirer
+        .prompt([
+          {
+            name: 'first_name',
+            type: 'input',
+            message: "Enter the employee's first name:",
+          },
+          {
+            name: 'last_name',
+            type: 'input',
+            message: "Enter the employee's last name:",
+          },
+          {
+            name: 'role',
+            type: 'list',
+            message: "Select the employee's role:",
+            choices: roles.map((role) => role.title),
+          },
+          {
+            name: 'manager',
+            type: 'input',
+            message: "Enter the employee's manager ID:",
+          },
+        ])
+        .then((answers) => {
+          // Find the role ID based on the selected role title
+          const roleId = roles.find((role) => role.title === answers.role).id;
+
+          // Insert the new employee into the database
+          db.query(
+            'INSERT INTO employees (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)',
+            [answers.first_name, answers.last_name, roleId, answers.manager],
+            (err, results) => {
+              if (err) {
+                console.error(err);
+              } else {
+                console.log('Employee added successfully!');
+                displayMenu();
+              }
+            }
+          );
+        });
+    }
+  });
+}
+
+// Function to update an employee role
+function updateEmployeeRole() {
+  // Retrieve the list of employees for the prompt choices
+  db.query('SELECT * FROM employees', (err, employees) => {
+    if (err) {
+      console.error(err);
+    } else {
+      inquirer
+        .prompt([
+          {
+            name: 'employee',
+            type: 'list',
+            message: 'Select the employee to update:',
+            choices: employees.map(
+              (employee) =>
+                `${employee.first_name} ${employee.last_name} (ID: ${employee.id})`
+            ),
+          },
+          {
+            name: 'role',
+            type: 'input',
+            message: 'Enter the new role ID for the employee:',
+          },
+        ])
+        .then((answers) => {
+          // Extract the employee ID from the selected employee string
+          const employeeId = answers.employee.match(/\d+/)[0];
+
+          // Update the employee's role in the database
+          db.query(
+            'UPDATE employees SET role_id = ? WHERE id = ?',
+            [answers.role, employeeId],
+            (err, results) => {
+              if (err) {
+                console.error(err);
+              } else {
+                console.log('Employee role updated successfully!');
+                displayMenu();
+              }
+            }
+          );
+        });
+    }
+  });
+}
+
+// Connect to the database and start the application
+db.connect((err) => {
+  if (err) {
+    console.error('Error connecting to the database: ' + err.stack);
+    return;
+  }
+  console.log('Connected to the database as id ' + db.threadId);
+  displayMenu();
 });
+
+
+
+
+
+
