@@ -73,6 +73,10 @@ Add an Employee:
 
 ![Add an Employee](./assets/images/Add%20Employee.png)
 
+## Video Link:
+
+https://drive.google.com/file/d/1fCk55XjGMW2t9VSc4Ci3fPE934HkSNbx/view
+
 ## Contributing
 
 Contributions are welcome! If you find any issues or want to enhance the Employee Tracker app, feel free to open an issue or submit a pull request.
