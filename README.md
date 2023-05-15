@@ -7,7 +7,6 @@ The Employee Tracker is a command-line application that allows you to manage dep
 - View all departments, roles, and employees
 - Add departments, roles, and employees
 - Update an employee's role
-- Delete a department, role, or employee
 - Exit the application
 
 ## Technologies Used
@@ -62,6 +61,17 @@ npm start
 ## Screenshots
 
 
+Initial Menu:
+
+![Initial Menu](./assets/images/Initial%20Menu.png)
+
+View all Departments:
+
+![View all Departments](./assets/images/View%20Departments.png)
+
+Add an Employee:
+
+![Add an Employee](./assets/images/Add%20Employee.png)
 
 ## Contributing
 
@@ -74,4 +84,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Contact
 
-If you have any questions or suggestions, please feel free to contact [Your Name] at [vladkb@yahoo.com].
+If you have any questions or suggestions, please feel free to contact me at [vladkb@yahoo.com].
